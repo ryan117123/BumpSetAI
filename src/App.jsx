@@ -31,7 +31,15 @@ function App() {
   };
 
   const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(segments, null, 2)], { type: 'application/json' });
+    const output = {
+    videoUrl: `https://www.youtube.com/watch?v=${currentId}`,
+    segments: segments.map(s => ({
+      start: parseFloat(s.start.toFixed(2)),
+      end: parseFloat(s.end.toFixed(2))
+    }))
+  };
+
+    const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -56,8 +64,8 @@ function App() {
             videoId={currentId}
             onReady={(e) => (playerRef.current = e.target)}
             opts={{
-      width: '100%',
-      height: '500', // or leave blank if using aspect ratio trick
+      height: '600',     // or any custom value
+      width: '1500',
       playerVars: {  
         controls: 1,
       },
