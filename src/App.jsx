@@ -57,7 +57,10 @@ function App() {
             onReady={(e) => (playerRef.current = e.target)}
             opts={{
       width: '100%',
-      // height: '500', // or leave blank if using aspect ratio trick
+      height: '500', // or leave blank if using aspect ratio trick
+      playerVars: {  
+        controls: 1,
+      },
     }}
           />
           <button onClick={toggleLabel} style={{ marginTop: 10 }}>
