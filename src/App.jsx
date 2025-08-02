@@ -55,7 +55,10 @@ function App() {
           <YouTube
             videoId={currentId}
             onReady={(e) => (playerRef.current = e.target)}
-            opts={{ playerVars: { controls: 1 } }}
+            opts={{
+      width: '100%',
+      // height: '500', // or leave blank if using aspect ratio trick
+    }}
           />
           <button onClick={toggleLabel} style={{ marginTop: 10 }}>
             {inPlay ? 'End In-Play' : 'Start In-Play'}
