@@ -49,7 +49,8 @@ function App() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Volleyball Labeler</h2>
+      <h2>BumpSetAI Data Labeling</h2>
+      <h5>A tool for labeling volleyball video segments.</h5>
       <input
         style={{ width: '300px' }}
         placeholder="Paste YouTube link"
