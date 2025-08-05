@@ -2,10 +2,11 @@
 import torch
 import torch.nn as nn
 from torchvision import models
+from torchvision.models import resnet18, ResNet18_Weights
 
-# CNN + LSTM architecture with frozen CNN encoder
+# CNN + LSTM for per-frame classification
 def get_resnet18_backbone():
-    resnet = models.resnet18(pretrained=True)
+    resnet = resnet18(weights=ResNet18_Weights.DEFAULT)
     return nn.Sequential(*list(resnet.children())[:-1])
 
 class CNNLSTM(nn.Module):
@@ -23,11 +24,11 @@ class CNNLSTM(nn.Module):
         )
         self.classifier = nn.Linear(hidden_size, num_classes)
 
-    def forward(self, x):
+    def forward(self, x):  # x: [B, T, C, H, W]
         B, T, C, H, W = x.shape
         x = x.view(B * T, C, H, W)
-        feats = self.cnn(x).squeeze(-1).squeeze(-1)
-        feats = feats.view(B, T, -1)
-        lstm_out, _ = self.lstm(feats)
-        out = self.classifier(lstm_out[:, -1, :])
+        feats = self.cnn(x).squeeze(-1).squeeze(-1)  # [B*T, 512]
+        feats = feats.view(B, T, -1)  # [B, T, 512]
+        lstm_out, _ = self.lstm(feats)  # [B, T, hidden_size]
+        out = self.classifier(lstm_out)  # [B, T, num_classes]
         return out

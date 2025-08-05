@@ -43,8 +43,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load dataset from saved .pt files
-clips_dir = "output/clips"
-labels_dir = "output/labels"
+clips_dir = "/content/drive/MyDrive/BumpSetAI_data/match1_clips/clips"
+labels_dir = "/content/drive/MyDrive/BumpSetAI_data/match1_clips/labels"
 dataset = DiskClipDataset(clips_dir, labels_dir)
 
 train_size = int(0.8 * len(dataset))
@@ -67,7 +67,7 @@ for epoch in range(5):
         x_batch = x_batch.to(device)  # [B, T, C, H, W]
         y_batch = y_batch.to(device)  # [B, T]
         outputs = model(x_batch)      # [B, T, num_classes]
-        loss = criterion(outputs.view(-1, 2), y_batch.view(-1))
+        loss = criterion(outputs.reshape(-1, outputs.size(-1)), y_batch.reshape(-1))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -82,7 +82,7 @@ for epoch in range(5):
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
             outputs = model(x_batch)
-            loss = criterion(outputs.view(-1, 2), y_batch.view(-1))
+            loss = criterion(outputs.reshape(-1, outputs.size(-1)), y_batch.reshape(-1))
             val_loss += loss.item()
             predictions = torch.argmax(outputs, dim=2)  # [B, T]
             correct += (predictions == y_batch).sum().item()
