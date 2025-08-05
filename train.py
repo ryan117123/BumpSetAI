@@ -43,8 +43,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load dataset from saved .pt files
-clips_dir = "/content/drive/MyDrive/BumpSetAI_data/match1_clips/clips"
-labels_dir = "/content/drive/MyDrive/BumpSetAI_data/match1_clips/labels"
+clips_dir = "/content/local_dataset/clips"
+labels_dir = "/content/local_dataset/labels"
 dataset = DiskClipDataset(clips_dir, labels_dir)
 
 train_size = int(0.8 * len(dataset))
@@ -58,12 +58,13 @@ val_loader = DataLoader(val_dataset, batch_size=4)
 model = CNNLSTM().to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
+import time
 # Training loop
 for epoch in range(5):
     model.train()
     train_loss = 0
-    for x_batch, y_batch in train_loader:
+    start = time.time()
+    for i, (x_batch, y_batch) in enumerate(train_loader):
         x_batch = x_batch.to(device)  # [B, T, C, H, W]
         y_batch = y_batch.to(device)  # [B, T]
         outputs = model(x_batch)      # [B, T, num_classes]
@@ -72,6 +73,10 @@ for epoch in range(5):
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
+        if i == 0:
+            end = time.time()
+            print(f"Time for first batch: {end - start:.2f} seconds")
+            start = end
 
     model.eval()
     val_loss = 0
@@ -87,6 +92,7 @@ for epoch in range(5):
             predictions = torch.argmax(outputs, dim=2)  # [B, T]
             correct += (predictions == y_batch).sum().item()
             total += y_batch.numel()
+    print("epoch", epoch+1)
 
     print(f"Epoch {epoch+1}: Train Loss = {train_loss/len(train_loader):.4f}, "
           f"Val Loss = {val_loss/len(val_loader):.4f}, "
