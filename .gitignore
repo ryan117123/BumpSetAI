@@ -1,3 +1,7 @@
-TrainingData/
+data/
 *.mp4
 *.json
+
+data/match1_clips/*/
+*.pt
+
