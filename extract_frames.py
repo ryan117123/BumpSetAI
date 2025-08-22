@@ -1,59 +1,84 @@
 # === extract_frames.py ===
+
 import cv2
+import os
 import json
 import torch
-import os
-import numpy as np
+from tqdm import tqdm 
 from torchvision import transforms
-from utils import load_labels
 
-# Extract frames using a sliding window and save each clip+label to disk as uint8
 
-def extract_frames_with_labels(video_path, json_path, output_dir, fps=5, window_size=20, stride=5):
-    labels = load_labels(json_path)
+def extract_and_save_frames_with_labels(
+    video_path,
+    json_path,
+    output_dir="output",
+    fps=5,
+    normalize=True
+):
+    # Create subdirectories for saving
+    frame_dir = os.path.join(output_dir, "frames")
+    label_dir = os.path.join(output_dir, "labels")
+    os.makedirs(frame_dir, exist_ok=True)
+    os.makedirs(label_dir, exist_ok=True)
+
+    # Load label segments from JSON
+    with open(json_path, "r") as f:
+        label_data = json.load(f)
+    segments = label_data.get("segments", [])
+
+    # Open video
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise RuntimeError(f"Failed to open video file: {video_path}")
+
     orig_fps = cap.get(cv2.CAP_PROP_FPS)
+    interval = int(round(orig_fps / fps))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    video_duration = total_frames / orig_fps
 
-    os.makedirs(output_dir, exist_ok=True)
-    clips_dir = os.path.join(output_dir, "clips")
-    labels_dir = os.path.join(output_dir, "labels")
-    os.makedirs(clips_dir, exist_ok=True)
-    os.makedirs(labels_dir, exist_ok=True)
+    # Define image transform
+    transform_list = [
+        transforms.ToPILImage(),
+        transforms.Resize((224, 224)),
+        transforms.ToTensor()
+    ]
+    if normalize:
+        transform_list.append(
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+        )
+    preprocess = transforms.Compose(transform_list)
 
-    segments = labels['segments']
-    in_play_ranges = [(s['start'], s['end']) for s in segments]
+    # Iterate through frames
+    idx = 0
+    saved = 0
+    pbar = tqdm(total=total_frames, desc="Extracting frames")
 
-    frames = []
-    frame_labels = []
-
-    for i in range(0, total_frames, int(orig_fps // fps)):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+    while True:
         ret, frame = cap.read()
         if not ret:
             break
-        timestamp = i / orig_fps
+        pbar.update(1)
 
-        in_play = any(start <= timestamp <= end for start, end in in_play_ranges)
-        label = 1 if in_play else 0
+        if idx % interval == 0:
+            timestamp = idx / orig_fps  # seconds
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = cv2.resize(frame, (224, 224))  # Resize before saving
+            # Determine if timestamp is in an in-play segment
+            in_play = any(seg["start"] <= timestamp <= seg["end"] for seg in segments)
+            label = 1 if in_play else 0
 
-        frames.append(frame.astype(np.uint8))  # Save as uint8
-        frame_labels.append(label)
+            # Convert BGR (OpenCV) to RGB and apply transforms
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            tensor = preprocess(frame_rgb)  # [3, 224, 224]
 
+            # Save frame and label
+            torch.save(tensor, os.path.join(frame_dir, f"frame_{saved:05d}.pt"))
+            torch.save(torch.tensor(label), os.path.join(label_dir, f"label_{saved:05d}.pt"))
+            saved += 1
+
+        idx += 1
+
+    pbar.close()
     cap.release()
+    print(f"✅ Done! Saved {saved} frames and labels to: {output_dir}/")
 
-    clip_count = 0
-    for i in range(0, len(frames) - window_size + 1, stride):
-        clip = np.stack(frames[i:i + window_size])        # shape: [T, H, W, C]
-        label_seq = torch.tensor(frame_labels[i:i + window_size])  # shape: [T]
 
-        torch.save(torch.from_numpy(clip), os.path.join(clips_dir, f"clip_{clip_count}.pt"))
-        torch.save(label_seq, os.path.join(labels_dir, f"label_{clip_count}.pt"))
-        clip_count += 1
-
-    print(f"Saved {clip_count} uint8 clips to {output_dir}")
-    return clip_count
