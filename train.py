@@ -43,8 +43,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Load full frame dataset into RAM and build clips dynamically
-frame_dir = "/content/local_dataset/frames"
-label_dir = "/content/local_dataset/labels"
+frame_dir = "/content/local_dataset/match1_frames/frames"
+label_dir = "/content/local_dataset/match1_frames/labels"
 dataset = FrameClipDataset(frame_dir, label_dir, clip_len=16, stride=4)
 
 train_size = int(0.8 * len(dataset))
